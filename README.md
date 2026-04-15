@@ -7,5 +7,5 @@ Telegram-бот с мини-играми на эмодзи: кубик, дарт
 
 1. Клонируйте репозиторий:
    ```bash
-   git clone https://github.com/BugaevaLove/emoji-games-bot.git
-   cd emoji-games-bot
+   git clone https://github.com/BugaevaLove/emoji-games.git
+   cd emoji-games
