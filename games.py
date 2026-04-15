@@ -1,4 +1,3 @@
-# games.py
 GAME_COEFFICIENTS = {
     "🎲": {
         "name": "dice",
