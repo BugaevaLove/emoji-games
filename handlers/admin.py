@@ -4,7 +4,7 @@ from telegram.ext import (
     ConversationHandler, CommandHandler, MessageHandler, filters,
     CallbackQueryHandler, ContextTypes
 )
-from database import db
+import database as db
 from keyboards import admin_panel_keyboard
 from config import ADMIN_IDS
 
@@ -146,6 +146,7 @@ admin_conv = ConversationHandler(
         BAN: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_ban_do)],
         BROADCAST: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_broadcast_do)]
     },
-    fallbacks=[CommandHandler("cancel", lambda u,c: ConversationHandler.END)],
-    allow_reentry=True
+    fallbacks=[CommandHandler("cancel", lambda u, c: ConversationHandler.END)],
+    allow_reentry=True,
+    per_message=True   # ← добавлено для устранения предупреждения
 )
