@@ -3,9 +3,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-if not BOT_TOKEN:
-    raise ValueError("BOT_TOKEN не задан")
+TOKEN = os.getenv("BOT_TOKEN")
+if not TOKEN:
+    raise ValueError("Переменная окружения BOT_TOKEN не установлена!")
 
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "").split(","))) if os.getenv("ADMIN_IDS") else []
 
@@ -18,7 +18,7 @@ MAX_BET = 75.0
 # Целевой RTP (будет достигнут за счёт точных множителей)
 TARGET_RTP = 0.95
 
-# VIP‑уровни: порог оборота, % кэшбэка, % рейкбека, награда при достижении
+# VIP-уровни: порог оборота, % кэшбэка, % рейкбека, награда при достижении
 VIP_LEVELS = [
     {"turnover": 0,      "cashback": 3,  "rakeback": 1,   "reward": 0},
     {"turnover": 50,     "cashback": 4,  "rakeback": 2,   "reward": 2},
@@ -39,7 +39,7 @@ VIP_LEVELS = [
 REF_DEPOSIT_BONUS = 0.10
 REF_TURNOVER_BONUS = 0.12
 
-# Вагер‑множитель для кэшбэка / рейкбека
+# Вагер-множитель для кэшбэка / рейкбека
 WAGER_MULTIPLIER = 3
 
 # Антиспам: максимум игр в минуту
