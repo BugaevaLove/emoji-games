@@ -1,150 +1,146 @@
-import sqlite3
-import time
-import random
+import aiosqlite
+from contextlib import asynccontextmanager
 from config import DB_NAME
 
-def init_db():
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            user_id INTEGER PRIMARY KEY,
-            balance INTEGER DEFAULT 1000,
-            games_played INTEGER DEFAULT 0,
-            wins INTEGER DEFAULT 0,
-            best_dice INTEGER DEFAULT 0,
-            best_darts INTEGER DEFAULT 0,
-            best_bowling INTEGER DEFAULT 0,
-            best_football INTEGER DEFAULT 0,
-            best_basketball INTEGER DEFAULT 0,
-            best_slots INTEGER DEFAULT 0,
-            last_bonus_time REAL DEFAULT 0,
-            task1_id INTEGER DEFAULT 0,
-            task1_progress INTEGER DEFAULT 0,
-            task2_id INTEGER DEFAULT 0,
-            task2_progress INTEGER DEFAULT 0,
-            task3_id INTEGER DEFAULT 0,
-            task3_progress INTEGER DEFAULT 0,
-            tasks_updated_at REAL DEFAULT 0,
-            win_streak INTEGER DEFAULT 0
-        )
-    """)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS daily_tasks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            description TEXT,
-            goal INTEGER,
-            reward INTEGER,
-            type TEXT
-        )
-    """)
-    # Предзаполняем задания
-    cur.execute("SELECT COUNT(*) FROM daily_tasks")
-    if cur.fetchone()[0] == 0:
-        tasks = [
-            ("Сыграть в кубик 3 раза", 3, 150, "dice"),
-            ("Выиграть в слотах 1 раз", 1, 300, "slots_win"),
-            ("Потратить 500$ в играх", 500, 200, "spend"),
-            ("Сыграть в баскетбол 2 раза", 2, 150, "basketball"),
-            ("Выиграть в дартс 1 раз", 1, 250, "darts_win"),
-            ("Сыграть 5 игр в любые игры", 5, 200, "any_game"),
-            ("Выиграть 3 игры подряд", 3, 500, "win_streak")
-        ]
-        cur.executemany(
-            "INSERT INTO daily_tasks (description, goal, reward, type) VALUES (?, ?, ?, ?)",
-            tasks
-        )
-    conn.commit()
-    conn.close()
+class Database:
+    def __init__(self, db_path: str):
+        self.db_path = db_path
 
-def get_user(user_id):
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
-    row = cur.fetchone()
-    conn.close()
-    if row:
-        columns = ['user_id', 'balance', 'games_played', 'wins',
-                   'best_dice', 'best_darts', 'best_bowling',
-                   'best_football', 'best_basketball', 'best_slots',
-                   'last_bonus_time', 'task1_id', 'task1_progress',
-                   'task2_id', 'task2_progress', 'task3_id', 'task3_progress',
-                   'tasks_updated_at', 'win_streak']
-        user = dict(zip(columns, row))
-        # Проверяем, нужно ли обновить задания (прошло > 24 часов)
-        now = time.time()
-        if now - user.get('tasks_updated_at', 0) > 86400:
-            assign_daily_tasks(user_id, user)
-        return user
-    else:
-        conn = sqlite3.connect(DB_NAME)
-        cur = conn.cursor()
-        cur.execute("INSERT INTO users (user_id) VALUES (?)", (user_id,))
-        conn.commit()
-        conn.close()
-        user = {
-            'user_id': user_id,
-            'balance': 1000,
-            'games_played': 0,
-            'wins': 0,
-            'best_dice': 0,
-            'best_darts': 0,
-            'best_bowling': 0,
-            'best_football': 0,
-            'best_basketball': 0,
-            'best_slots': 0,
-            'last_bonus_time': 0,
-            'task1_id': 0, 'task1_progress': 0,
-            'task2_id': 0, 'task2_progress': 0,
-            'task3_id': 0, 'task3_progress': 0,
-            'tasks_updated_at': 0,
-            'win_streak': 0
-        }
-        assign_daily_tasks(user_id, user)
-        return user
+    @asynccontextmanager
+    async def get_connection(self):
+        conn = await aiosqlite.connect(self.db_path)
+        conn.row_factory = aiosqlite.Row
+        try:
+            yield conn
+        finally:
+            await conn.close()
 
-def assign_daily_tasks(user_id, user):
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute("SELECT id, description, goal, reward, type FROM daily_tasks ORDER BY RANDOM() LIMIT 3")
-    tasks = cur.fetchall()
-    conn.close()
-    if tasks:
-        updates = {
-            'task1_id': tasks[0][0],
-            'task1_progress': 0,
-            'task2_id': tasks[1][0],
-            'task2_progress': 0,
-            'task3_id': tasks[2][0],
-            'task3_progress': 0,
-            'tasks_updated_at': time.time()
-        }
-        user.update(updates)
-        update_user(user_id, **updates)
+    async def init(self):
+        async with self.get_connection() as db:
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    user_id INTEGER PRIMARY KEY,
+                    username TEXT,
+                    first_name TEXT,
+                    balance REAL DEFAULT 0.0,
+                    total_deposits REAL DEFAULT 0.0,
+                    total_withdrawals REAL DEFAULT 0.0,
+                    turnover REAL DEFAULT 0.0,
+                    games_played INTEGER DEFAULT 0,
+                    games_won INTEGER DEFAULT 0,
+                    vip_level INTEGER DEFAULT 0,
+                    cashback_balance REAL DEFAULT 0.0,
+                    rakeback_balance REAL DEFAULT 0.0,
+                    referral_balance REAL DEFAULT 0.0,
+                    registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    is_banned INTEGER DEFAULT 0,
+                    referrer_id INTEGER,
+                    last_game_time REAL DEFAULT 0,
+                    game_count_minute INTEGER DEFAULT 0,
+                    best_dice INTEGER DEFAULT 0,
+                    best_darts INTEGER DEFAULT 0,
+                    best_bowling INTEGER DEFAULT 0,
+                    best_football INTEGER DEFAULT 0,
+                    best_basketball INTEGER DEFAULT 0,
+                    best_slots INTEGER DEFAULT 0,
+                    FOREIGN KEY(referrer_id) REFERENCES users(user_id)
+                )
+            """)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS game_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    game_type TEXT,
+                    mode TEXT,
+                    bet REAL,
+                    result_value INTEGER,
+                    win_amount REAL,
+                    played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(user_id) REFERENCES users(user_id)
+                )
+            """)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS transactions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    type TEXT,
+                    amount REAL,
+                    description TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(user_id) REFERENCES users(user_id)
+                )
+            """)
+            await db.commit()
 
-def update_user(user_id, **kwargs):
-    if not kwargs:
-        return
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    set_clause = ", ".join(f"{k} = ?" for k in kwargs.keys())
-    values = list(kwargs.values()) + [user_id]
-    cur.execute(f"UPDATE users SET {set_clause} WHERE user_id = ?", values)
-    conn.commit()
-    conn.close()
+    async def get_user(self, user_id: int):
+        async with self.get_connection() as db:
+            async with db.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)) as cursor:
+                row = await cursor.fetchone()
+                return dict(row) if row else None
 
-def get_top_users(limit=10):
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute("SELECT user_id, balance FROM users ORDER BY balance DESC LIMIT ?", (limit,))
-    rows = cur.fetchall()
-    conn.close()
-    return rows
+    async def create_user(self, user_id: int, username: str, first_name: str, referrer_id: int = None):
+        async with self.get_connection() as db:
+            await db.execute(
+                "INSERT INTO users (user_id, username, first_name, referrer_id) VALUES (?, ?, ?, ?)",
+                (user_id, username, first_name, referrer_id)
+            )
+            await db.commit()
+        return await self.get_user(user_id)
 
-def get_task_info(task_id):
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute("SELECT description, goal, reward, type FROM daily_tasks WHERE id = ?", (task_id,))
-    row = cur.fetchone()
-    conn.close()
-    return row  # (description, goal, reward, type)
+    async def update_user(self, user_id: int, **kwargs):
+        if not kwargs:
+            return
+        set_clause = ", ".join(f"{k} = ?" for k in kwargs)
+        values = list(kwargs.values()) + [user_id]
+        async with self.get_connection() as db:
+            await db.execute(f"UPDATE users SET {set_clause} WHERE user_id = ?", values)
+            await db.commit()
+
+    async def add_transaction(self, user_id: int, tx_type: str, amount: float, description: str = ""):
+        async with self.get_connection() as db:
+            await db.execute(
+                "INSERT INTO transactions (user_id, type, amount, description) VALUES (?, ?, ?, ?)",
+                (user_id, tx_type, amount, description)
+            )
+            await db.commit()
+
+    async def add_game_history(self, user_id: int, game_type: str, mode: str, bet: float, result_value: int, win_amount: float):
+        async with self.get_connection() as db:
+            await db.execute(
+                "INSERT INTO game_history (user_id, game_type, mode, bet, result_value, win_amount) VALUES (?, ?, ?, ?, ?, ?)",
+                (user_id, game_type, mode, bet, result_value, win_amount)
+            )
+            await db.commit()
+
+    async def get_top_users(self, limit: int = 10):
+        async with self.get_connection() as db:
+            async with db.execute(
+                "SELECT user_id, username, first_name, balance, vip_level FROM users WHERE is_banned = 0 ORDER BY balance DESC LIMIT ?",
+                (limit,)
+            ) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    async def search_users(self, query: str):
+        async with self.get_connection() as db:
+            async with db.execute(
+                """SELECT user_id, username, first_name, balance, turnover, vip_level, is_banned
+                   FROM users
+                   WHERE user_id LIKE ? OR username LIKE ? OR first_name LIKE ?
+                   LIMIT 20""",
+                (f"%{query}%", f"%{query}%", f"%{query}%")
+            ) as cursor:
+                return [dict(row) for row in await cursor.fetchall()]
+
+    async def get_total_stats(self):
+        async with self.get_connection() as db:
+            async with db.execute(
+                "SELECT COUNT(*) as total_users, SUM(balance) as total_balance, SUM(turnover) as total_turnover FROM users"
+            ) as cursor:
+                row = await cursor.fetchone()
+                return {
+                    "total_users": row["total_users"] or 0,
+                    "total_balance": row["total_balance"] or 0.0,
+                    "total_turnover": row["total_turnover"] or 0.0
+                }
+
+db = Database(DB_NAME)
