@@ -10,16 +10,24 @@ async def main():
     app = Application.builder().token(BOT_TOKEN).build()
     for h in handlers:
         app.add_handler(h)
-    
     print("Бот запущен...")
-    
-    # Запускаем polling с явным указанием stop_signals
     await app.run_polling(stop_signals=None)
 
 if __name__ == "__main__":
-    # Используем более надёжный способ запуска, совместимый с разными средами
     try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop is None:
         asyncio.run(main())
-    except KeyboardInterrupt:
-        print("Бот остановлен")
-        sys.exit(0)
+    else:
+        # Уже есть активный цикл – добавляем задачу и ждём
+        task = loop.create_task(main())
+        try:
+            loop.run_forever()
+        except KeyboardInterrupt:
+            task.cancel()
+            loop.run_until_complete(task)
+        finally:
+            loop.close()
