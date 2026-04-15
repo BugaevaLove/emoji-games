@@ -11,6 +11,7 @@ async def main():
     for h in handlers:
         app.add_handler(h)
     print("Бот запущен...")
+    # Запускаем polling без обработки сигналов остановки
     await app.run_polling(stop_signals=None)
 
 if __name__ == "__main__":
@@ -20,14 +21,17 @@ if __name__ == "__main__":
         loop = None
 
     if loop is None:
+        # Нет активного цикла — запускаем стандартным способом
         asyncio.run(main())
     else:
-        # Уже есть активный цикл – добавляем задачу и ждём
+        # Цикл уже запущен — создаём задачу в нём и ожидаем завершения
         task = loop.create_task(main())
         try:
-            loop.run_forever()
+            # run_forever будет работать, пока задача не завершится
+            loop.run_until_complete(task)
         except KeyboardInterrupt:
             task.cancel()
             loop.run_until_complete(task)
         finally:
-            loop.close()
+            # Не закрываем цикл, так как он управляется средой выполнения
+            pass

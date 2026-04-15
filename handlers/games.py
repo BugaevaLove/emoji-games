@@ -175,7 +175,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("❌ Действие отменено", reply_markup=main_menu())
     return ConversationHandler.END
 
-# ConversationHandler с per_message=True и обработчиком back_to_game_
 games_conv = ConversationHandler(
     entry_points=[
         MessageHandler(filters.Regex(r"^(🎲 Кубик|🎯 Дартс|🎳 Боулинг|⚽ Футбол|🏀 Баскетбол|🎰 Слоты)$"), game_selected),
@@ -192,6 +191,5 @@ games_conv = ConversationHandler(
         ]
     },
     fallbacks=[CommandHandler("cancel", cancel)],
-    allow_reentry=True,
-    per_message=True   # ← добавлено для устранения предупреждения
+    allow_reentry=True
 )

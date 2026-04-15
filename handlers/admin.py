@@ -147,6 +147,5 @@ admin_conv = ConversationHandler(
         BROADCAST: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_broadcast_do)]
     },
     fallbacks=[CommandHandler("cancel", lambda u, c: ConversationHandler.END)],
-    allow_reentry=True,
-    per_message=True   # ← добавлено для устранения предупреждения
+    allow_reentry=True
 )
